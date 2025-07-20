@@ -33,17 +33,33 @@ class ModernButton(tk.Button):
         
         super().__init__(master, **kwargs)
         
+        # Store original background color for hover effects
+        self.original_bg = kwargs.get('bg', '#4CAF50')
+        
         # Bind hover events
         self.bind('<Enter>', self.on_enter)
         self.bind('<Leave>', self.on_leave)
     
     def on_enter(self, event):
         """Handle mouse enter event."""
-        self.config(bg='#45a049')
+        # Darken the current background color for hover effect
+        if self.original_bg == '#F44336':  # Red (danger)
+            self.config(bg='#D32F2F')
+        elif self.original_bg == '#4CAF50':  # Green (success)
+            self.config(bg='#45a049')
+        elif self.original_bg == '#FFC107':  # Yellow (warning)
+            self.config(bg='#FFA000')
+        elif self.original_bg == '#00BCD4':  # Cyan (info)
+            self.config(bg='#00ACC1')
+        elif self.original_bg == '#212121':  # Dark gray
+            self.config(bg='#424242')
+        else:
+            # Default darkening for other colors
+            self.config(bg='#45a049')
     
     def on_leave(self, event):
         """Handle mouse leave event."""
-        self.config(bg='#4CAF50')
+        self.config(bg=self.original_bg)
 
 
 class TicTacToe:
@@ -86,7 +102,7 @@ class TicTacToe:
         self.buttons: Optional[List[List[Optional[tk.Button]]]] = None
         self.status_label: Optional[tk.Label] = None
         self.timer_label: Optional[tk.Label] = None
-        self.turn_time: int = 30
+        self.turn_time: int = 10
         self.timer_id: Optional[str] = None
         self.reset_btn: Optional[ModernButton] = None
         self.back_btn: Optional[ModernButton] = None
@@ -95,6 +111,8 @@ class TicTacToe:
         self.draw_request_active: bool = False
         self.draw_request_player: Optional[str] = None
         self.game_count: int = 0  # Đếm số trận đã chơi
+        self.game_active: bool = True  # Trạng thái game đang diễn ra
+        self.stats_label: Optional[tk.Label] = None  # Label hiển thị thống kê
         self.score_file = "tic_tac_toe_scores.json"
         self.load_scores()
         self.create_mode_selection()
@@ -104,13 +122,27 @@ class TicTacToe:
         try:
             if os.path.exists(self.score_file):
                 with open(self.score_file, 'r', encoding='utf-8') as f:
-                    self.scores = json.load(f)
+                    data = json.load(f)
+                    self.scores = data.get('scores', {
+                        'pvp': {'wins': 0, 'losses': 0, 'draws': 0},
+                        'pve_easy': {'wins': 0, 'losses': 0, 'draws': 0},
+                        'pve_medium': {'wins': 0, 'losses': 0, 'draws': 0},
+                        'pve_hard': {'wins': 0, 'losses': 0, 'draws': 0}
+                    })
+                    self.player_stats = data.get('player_stats', {
+                        'player1': {'wins': 0, 'losses': 0, 'draws': 0},
+                        'player2': {'wins': 0, 'losses': 0, 'draws': 0}
+                    })
             else:
                 self.scores = {
                     'pvp': {'wins': 0, 'losses': 0, 'draws': 0},
                     'pve_easy': {'wins': 0, 'losses': 0, 'draws': 0},
                     'pve_medium': {'wins': 0, 'losses': 0, 'draws': 0},
                     'pve_hard': {'wins': 0, 'losses': 0, 'draws': 0}
+                }
+                self.player_stats = {
+                    'player1': {'wins': 0, 'losses': 0, 'draws': 0},
+                    'player2': {'wins': 0, 'losses': 0, 'draws': 0}
                 }
         except Exception:
             self.scores = {
@@ -119,14 +151,62 @@ class TicTacToe:
                 'pve_medium': {'wins': 0, 'losses': 0, 'draws': 0},
                 'pve_hard': {'wins': 0, 'losses': 0, 'draws': 0}
             }
+            self.player_stats = {
+                'player1': {'wins': 0, 'losses': 0, 'draws': 0},
+                'player2': {'wins': 0, 'losses': 0, 'draws': 0}
+            }
 
     def save_scores(self) -> None:
         """Save scores to JSON file."""
         try:
+            data = {
+                'scores': self.scores,
+                'player_stats': self.player_stats
+            }
             with open(self.score_file, 'w', encoding='utf-8') as f:
-                json.dump(self.scores, f, indent=2, ensure_ascii=False)
+                json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving scores: {e}")
+
+    def reset_statistics(self) -> None:
+        """Reset all game statistics to zero."""
+        # Reset scores for all modes
+        self.scores = {
+            'pvp': {'wins': 0, 'losses': 0, 'draws': 0},
+            'pve_easy': {'wins': 0, 'losses': 0, 'draws': 0},
+            'pve_medium': {'wins': 0, 'losses': 0, 'draws': 0},
+            'pve_hard': {'wins': 0, 'losses': 0, 'draws': 0}
+        }
+        
+        # Reset player statistics
+        self.player_stats = {
+            'player1': {'wins': 0, 'losses': 0, 'draws': 0},
+            'player2': {'wins': 0, 'losses': 0, 'draws': 0}
+        }
+        
+        # Reset game count
+        self.game_count = 0
+        
+        # Save the reset statistics
+        self.save_scores()
+        
+        # Show confirmation message
+        messagebox.showinfo("✅ Thành công", "Đã reset lại tất cả thống kê trận đấu!")
+        
+        # Refresh the statistics display in the current game
+        if self.stats_label:
+            self.update_stats_display()
+
+    def confirm_reset_statistics(self) -> None:
+        """Show confirmation dialog before resetting statistics."""
+        result = messagebox.askyesno(
+            "⚠️ Xác nhận Reset", 
+            "Bạn có chắc chắn muốn xóa tất cả thống kê trận đấu?\n\n"
+            "Hành động này không thể hoàn tác!"
+        )
+        
+        if result:
+            self.reset_statistics()
 
     def update_score(self, result: str) -> None:
         """Update score based on game result.
@@ -136,6 +216,28 @@ class TicTacToe:
         """
         if self.mode == 'pvp':
             key = 'pvp'
+            # Cập nhật thống kê người chơi trong PvP
+            if result == 'win':
+                # Xác định người chơi nào thắng dựa trên lượt hiện tại
+                if self.game_count % 2 == 0:
+                    # Trận lẻ: X là người chơi 1, O là người chơi 2
+                    if self.current_player == 'X':
+                        self.player_stats['player1']['wins'] += 1
+                        self.player_stats['player2']['losses'] += 1
+                    else:
+                        self.player_stats['player2']['wins'] += 1
+                        self.player_stats['player1']['losses'] += 1
+                else:
+                    # Trận chẵn: O là người chơi 2, X là người chơi 1
+                    if self.current_player == 'O':
+                        self.player_stats['player2']['wins'] += 1
+                        self.player_stats['player1']['losses'] += 1
+                    else:
+                        self.player_stats['player1']['wins'] += 1
+                        self.player_stats['player2']['losses'] += 1
+            elif result == 'draw':
+                self.player_stats['player1']['draws'] += 1
+                self.player_stats['player2']['draws'] += 1
         else:
             key = f'pve_{self.ai_difficulty}'
         
@@ -147,6 +249,66 @@ class TicTacToe:
             self.scores[key]['draws'] += 1
         
         self.save_scores()
+        # Refresh statistics display if in game
+        if self.stats_label:
+            self.update_stats_display()
+
+    def update_stats_display(self) -> None:
+        """Update the statistics display in the game interface."""
+        if not self.stats_label or not self.mode:
+            return
+            
+        if self.mode == 'pvp':
+            # Hiển thị thống kê của từng người chơi
+            player1_stats = self.player_stats['player1']
+            player2_stats = self.player_stats['player2']
+            
+            total_games = player1_stats['wins'] + player1_stats['losses'] + player1_stats['draws']
+            
+            if total_games > 0:
+                p1_win_rate = (player1_stats['wins'] / total_games) * 100
+                p1_loss_rate = (player1_stats['losses'] / total_games) * 100
+                p1_draw_rate = (player1_stats['draws'] / total_games) * 100
+                
+                p2_win_rate = (player2_stats['wins'] / total_games) * 100
+                p2_loss_rate = (player2_stats['losses'] / total_games) * 100
+                p2_draw_rate = (player2_stats['draws'] / total_games) * 100
+            else:
+                p1_win_rate = p1_loss_rate = p1_draw_rate = 0
+                p2_win_rate = p2_loss_rate = p2_draw_rate = 0
+            
+            stats_text = f"""
+🎮 Tổng ván: {total_games}
+
+👤 Người chơi 1:
+✅ Thắng: {player1_stats['wins']} ({p1_win_rate:.1f}%)
+❌ Thua: {player1_stats['losses']} ({p1_loss_rate:.1f}%)
+🤝 Hòa: {player1_stats['draws']} ({p1_draw_rate:.1f}%)
+
+👤 Người chơi 2:
+✅ Thắng: {player2_stats['wins']} ({p2_win_rate:.1f}%)
+❌ Thua: {player2_stats['losses']} ({p2_loss_rate:.1f}%)
+🤝 Hòa: {player2_stats['draws']} ({p2_draw_rate:.1f}%)
+        """
+        else:
+            # Chế độ PvE - hiển thị thống kê chung
+            current_stats = self.scores[f'pve_{self.ai_difficulty}']
+            total_games = current_stats['wins'] + current_stats['losses'] + current_stats['draws']
+            if total_games > 0:
+                win_rate = (current_stats['wins'] / total_games) * 100
+                loss_rate = (current_stats['losses'] / total_games) * 100
+                draw_rate = (current_stats['draws'] / total_games) * 100
+            else:
+                win_rate = loss_rate = draw_rate = 0
+            
+            stats_text = f"""
+🎮 Tổng ván: {total_games}
+✅ Thắng: {current_stats['wins']} ({win_rate:.1f}%)
+❌ Thua: {current_stats['losses']} ({loss_rate:.1f}%)
+🤝 Hòa: {current_stats['draws']} ({draw_rate:.1f}%)
+        """
+        
+        self.stats_label.config(text=stats_text)
 
     def create_title_frame(self, title: str) -> tk.Frame:
         """Create a beautiful title frame.
@@ -311,16 +473,31 @@ class TicTacToe:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
+        # Buttons frame
+        buttons_frame = tk.Frame(main_frame, bg=self.colors['light'])
+        buttons_frame.pack(pady=10)
+        
+        # Reset statistics button
+        reset_btn = ModernButton(
+            buttons_frame, 
+            text="🗑️ Reset thống kê", 
+            font=('Segoe UI', 12, 'bold'),
+            bg=self.colors['danger'],
+            activebackground='#D32F2F',
+            command=self.confirm_reset_statistics
+        )
+        reset_btn.pack(side='left', padx=10)
+        
         # Back button
         back_btn = ModernButton(
-            main_frame, 
+            buttons_frame, 
             text="🔙 Quay lại", 
             font=('Segoe UI', 12, 'bold'),
             bg=self.colors['dark'],
             activebackground='#424242',
             command=self.create_mode_selection
         )
-        back_btn.pack(pady=10)
+        back_btn.pack(side='left', padx=10)
 
     def create_ai_difficulty_selection(self) -> None:
         """Create the AI difficulty selection screen."""
@@ -401,11 +578,12 @@ class TicTacToe:
         
         # Xác định người chơi đầu tiên dựa trên số trận đã chơi
         if mode == 'pvp':
-            # Trận lẻ: X là người chơi 1, trận chẵn: X là người chơi 2
+            # Ván lẻ (1, 3, 5...): X đi trước
+            # Ván chẵn (2, 4, 6...): O đi trước
             if self.game_count % 2 == 0:
-                self.current_player = 'X'  # X đi trước (người chơi 1)
+                self.current_player = 'X'  # Ván lẻ: X đi trước
             else:
-                self.current_player = 'O'  # O đi trước (X là người chơi 2)
+                self.current_player = 'O'  # Ván chẵn: O đi trước
         else:
             self.current_player = 'X'  # Trong PvE, X luôn đi trước
         
@@ -439,11 +617,11 @@ class TicTacToe:
         else:  # pvp mode
             # Xác định người chơi dựa trên lượt hiện tại và số trận đã chơi
             if self.game_count % 2 == 0:
-                # Trận lẻ: X là người chơi 1, O là người chơi 2
+                # Ván lẻ: X là người chơi 1, O là người chơi 2
                 player_info = f" (Người chơi {1 if self.current_player == 'X' else 2})"
             else:
-                # Trận chẵn: O là người chơi 1, X là người chơi 2
-                player_info = f" (Người chơi {1 if self.current_player == 'O' else 2})"
+                # Ván chẵn: O là người chơi 2, X là người chơi 1
+                player_info = f" (Người chơi {2 if self.current_player == 'O' else 1})"
         
         self.status_label = tk.Label(
             info_frame, 
@@ -481,12 +659,12 @@ class TicTacToe:
         
         self.stats_btn = ModernButton(
             controls_frame, 
-            text="📊 Thống kê", 
+            text="🗑️ Reset thống kê", 
             font=('Segoe UI', 12, 'bold'),
-            bg=self.colors['info'],
-            activebackground='#00ACC1',
+            bg=self.colors['danger'],
+            activebackground='#D32F2F',
             width=20,
-            command=self.show_statistics
+            command=self.confirm_reset_statistics
         )
         self.stats_btn.pack(pady=5)
         
@@ -518,7 +696,7 @@ class TicTacToe:
         instructions_frame = tk.Frame(left_panel, bg=self.colors['white'], padx=15, pady=15)
         instructions_frame.pack(fill='x')
         
-        instructions_text = "📖 Hướng dẫn:\n• Click vào ô để đánh\n• Mỗi lượt có 30 giây\n• X luôn đi trước\n• 3 ô liên tiếp để thắng"
+        instructions_text = "📖 Hướng dẫn:\n• Click vào ô để đánh\n• Mỗi lượt có 10 giây\n• Thay phiên người chơi đi trước\n• 3 ô liên tiếp để thắng"
         if mode == 'pvp':
             instructions_text += "\n• Bấm 'Cầu hòa' để đề nghị hòa"
         
@@ -582,26 +760,56 @@ class TicTacToe:
         
         # Get current mode stats
         if mode == 'pvp':
-            current_stats = self.scores['pvp']
+            # Hiển thị thống kê của từng người chơi
+            player1_stats = self.player_stats['player1']
+            player2_stats = self.player_stats['player2']
+            
+            total_games = player1_stats['wins'] + player1_stats['losses'] + player1_stats['draws']
+            
+            if total_games > 0:
+                p1_win_rate = (player1_stats['wins'] / total_games) * 100
+                p1_loss_rate = (player1_stats['losses'] / total_games) * 100
+                p1_draw_rate = (player1_stats['draws'] / total_games) * 100
+                
+                p2_win_rate = (player2_stats['wins'] / total_games) * 100
+                p2_loss_rate = (player2_stats['losses'] / total_games) * 100
+                p2_draw_rate = (player2_stats['draws'] / total_games) * 100
+            else:
+                p1_win_rate = p1_loss_rate = p1_draw_rate = 0
+                p2_win_rate = p2_loss_rate = p2_draw_rate = 0
+            
+            stats_text = f"""
+🎮 Tổng ván: {total_games}
+
+👤 Người chơi 1:
+✅ Thắng: {player1_stats['wins']} ({p1_win_rate:.1f}%)
+❌ Thua: {player1_stats['losses']} ({p1_loss_rate:.1f}%)
+🤝 Hòa: {player1_stats['draws']} ({p1_draw_rate:.1f}%)
+
+👤 Người chơi 2:
+✅ Thắng: {player2_stats['wins']} ({p2_win_rate:.1f}%)
+❌ Thua: {player2_stats['losses']} ({p2_loss_rate:.1f}%)
+🤝 Hòa: {player2_stats['draws']} ({p2_draw_rate:.1f}%)
+        """
         else:
+            # Chế độ PvE - hiển thị thống kê chung
             current_stats = self.scores[f'pve_{self.ai_difficulty}']
-        
-        total_games = current_stats['wins'] + current_stats['losses'] + current_stats['draws']
-        if total_games > 0:
-            win_rate = (current_stats['wins'] / total_games) * 100
-            loss_rate = (current_stats['losses'] / total_games) * 100
-            draw_rate = (current_stats['draws'] / total_games) * 100
-        else:
-            win_rate = loss_rate = draw_rate = 0
-        
-        stats_text = f"""
+            total_games = current_stats['wins'] + current_stats['losses'] + current_stats['draws']
+            if total_games > 0:
+                win_rate = (current_stats['wins'] / total_games) * 100
+                loss_rate = (current_stats['losses'] / total_games) * 100
+                draw_rate = (current_stats['draws'] / total_games) * 100
+            else:
+                win_rate = loss_rate = draw_rate = 0
+            
+            stats_text = f"""
 🎮 Tổng ván: {total_games}
 ✅ Thắng: {current_stats['wins']} ({win_rate:.1f}%)
 ❌ Thua: {current_stats['losses']} ({loss_rate:.1f}%)
 🤝 Hòa: {current_stats['draws']} ({draw_rate:.1f}%)
         """
         
-        stats_label = tk.Label(
+        self.stats_label = tk.Label(
             stats_frame,
             text=stats_text,
             font=('Segoe UI', 11),
@@ -609,7 +817,7 @@ class TicTacToe:
             bg=self.colors['white'],
             justify='left'
         )
-        stats_label.pack()
+        self.stats_label.pack()
         
         # Game mode info
         mode_frame = tk.Frame(right_panel, bg=self.colors['white'], padx=15, pady=15)
@@ -627,11 +835,11 @@ class TicTacToe:
         if mode == 'pvp':
             # Hiển thị thông tin người chơi dựa trên số trận
             if self.game_count % 2 == 0:
-                # Trận lẻ: X là người chơi 1, O là người chơi 2
+                # Ván lẻ: X là người chơi 1, O là người chơi 2
                 mode_text = "👥 Người vs Người\n• Người chơi 1 (X) đi trước\n• Người chơi 2 (O) đi sau\n• Thay phiên nhau"
             else:
-                # Trận chẵn: O là người chơi 1, X là người chơi 2
-                mode_text = "👥 Người vs Người\n• Người chơi 1 (O) đi trước\n• Người chơi 2 (X) đi sau\n• Thay phiên nhau"
+                # Ván chẵn: O là người chơi 2, X là người chơi 1
+                mode_text = "👥 Người vs Người\n• Người chơi 1 (X) đi sau\n• Người chơi 2 (O) đi trước\n• Thay phiên nhau"
         else:
             difficulty_map = {'easy': 'Dễ', 'medium': 'Trung bình', 'hard': 'Khó'}
             mode_text = f"🤖 Người vs Máy\n• Bạn là X\n• AI là O\n• Độ khó: {difficulty_map[self.ai_difficulty]}"
@@ -646,35 +854,7 @@ class TicTacToe:
         )
         mode_label.pack()
         
-        # Quick actions
-        actions_frame = tk.Frame(right_panel, bg=self.colors['white'], padx=15, pady=15)
-        actions_frame.pack(fill='x')
-        
-        actions_title = tk.Label(
-            actions_frame,
-            text="⚡ Thao tác nhanh",
-            font=('Segoe UI', 14, 'bold'),
-            fg=self.colors['primary'],
-            bg=self.colors['white']
-        )
-        actions_title.pack(pady=(0, 10))
-        
-        actions_text = """
-🔄 F5: Chơi lại
-📊 Ctrl+S: Xem thống kê
-🔙 Esc: Quay lại menu
-⏸️ Space: Tạm dừng
-        """
-        
-        actions_label = tk.Label(
-            actions_frame,
-            text=actions_text,
-            font=('Segoe UI', 10),
-            fg=self.colors['dark'],
-            bg=self.colors['white'],
-            justify='left'
-        )
-        actions_label.pack()
+
         
         self.start_timer()
         
@@ -682,8 +862,12 @@ class TicTacToe:
             self.root.after(500, self.computer_move)
 
     def start_timer(self):
+        # Only start timer if game is still active
+        if not self.game_active:
+            return
+            
         self.stop_timer()
-        self.turn_time = 30
+        self.turn_time = 10
         self.update_timer_label()
         self.timer_id = self.root.after(1000, self.countdown)
 
@@ -839,10 +1023,10 @@ class TicTacToe:
                 else:  # pvp mode
                     # Xác định người chơi dựa trên lượt hiện tại và số trận đã chơi
                     if self.game_count % 2 == 0:
-                        # Trận lẻ: X là người chơi 1, O là người chơi 2
+                        # Ván lẻ: X là người chơi 1, O là người chơi 2
                         player_info = f" (Người chơi {1 if self.current_player == 'X' else 2})"
                     else:
-                        # Trận chẵn: O là người chơi 1, X là người chơi 2
+                        # Ván chẵn: O là người chơi 1, X là người chơi 2
                         player_info = f" (Người chơi {1 if self.current_player == 'O' else 2})"
                 self.status_label.config(text=f"🎯 Lượt của: {self.current_player}{player_info}{difficulty_text}", fg=self.colors['primary'])
             self.start_timer()
@@ -865,7 +1049,7 @@ class TicTacToe:
         if self.mode == 'pve' and self.current_player == 'O':
             return  # Chặn người chơi đi khi đến lượt máy
         self.make_move(row, col)
-        self.start_timer()
+        # Timer will be managed inside make_move function
         if self.mode == 'pve' and self.current_player == 'O':
             self.root.after(500, self.computer_move)
 
@@ -891,6 +1075,9 @@ class TicTacToe:
         winner = self.check_winner()
         
         if winner:
+            # Game ended - set active to False
+            self.game_active = False
+            
             # Create winner message
             if self.mode == 'pvp':
                 winner_text = f"🎉 Người chơi {1 if winner == 'X' else 2} ({winner}) thắng!"
@@ -903,11 +1090,11 @@ class TicTacToe:
             
             # Update score
             if self.mode == 'pvp':
-                # In PvP, X always goes first, so X is player 1, O is player 2
+                # Trong PvP, cập nhật thống kê dựa trên người thắng
                 if winner == 'X':
-                    self.update_score('win')  # Player 1 wins
+                    self.update_score('win')  # X thắng
                 else:
-                    self.update_score('loss')  # Player 2 wins
+                    self.update_score('win')  # O thắng
             else:
                 # In PvE, player is always X, AI is always O
                 if winner == 'X':
@@ -918,6 +1105,9 @@ class TicTacToe:
             messagebox.showinfo("🎉 Kết quả", winner_text)
             self.stop_timer()
         elif self.is_draw():
+            # Game ended - set active to False
+            self.game_active = False
+            
             if self.status_label is not None:
                 self.status_label.config(text="🤝 Hòa!", fg=self.colors['warning'])
             self.disable_all_buttons()
@@ -933,8 +1123,15 @@ class TicTacToe:
                     difficulty_map = {'easy': 'Dễ', 'medium': 'Trung bình', 'hard': 'Khó'}
                     difficulty_text = f" (AI: {difficulty_map[self.ai_difficulty]})"
                 else:  # pvp mode
-                    player_info = f" (Người chơi {1 if self.current_player == 'X' else 2})"
+                    # Xác định người chơi dựa trên lượt hiện tại và số trận đã chơi
+                    if self.game_count % 2 == 0:
+                        # Ván lẻ: X là người chơi 1, O là người chơi 2
+                        player_info = f" (Người chơi {1 if self.current_player == 'X' else 2})"
+                    else:
+                        # Ván chẵn: O là người chơi 1, X là người chơi 2
+                        player_info = f" (Người chơi {1 if self.current_player == 'O' else 2})"
                 self.status_label.config(text=f"🎯 Lượt của: {self.current_player}{player_info}{difficulty_text}", fg=self.colors['primary'])
+            # Only start timer if game continues
             self.start_timer()
 
     def computer_move(self) -> None:
@@ -960,7 +1157,7 @@ class TicTacToe:
             row, col = self.get_best_move()
             
         self.make_move(row, col)
-        self.start_timer()
+        # Timer will be managed inside make_move function
 
     def get_best_move(self) -> Tuple[int, int]:
         """Get the best move using Minimax algorithm.
@@ -1106,6 +1303,10 @@ class TicTacToe:
         # Reset draw request state
         self.draw_request_active = False
         self.draw_request_player = None
+        self.game_active = True  # Reset game to active state
+        
+        # Tăng số ván đã chơi để luân phiên người chơi đi trước
+        self.game_count += 1
         
         if self.mode:
             if self.mode == 'pve':
