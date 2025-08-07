@@ -3,12 +3,12 @@
     "pvp": {
       "wins": 0,
       "losses": 0,
-      "draws": 0
+      "draws": 1
     },
     "pve_easy": {
       "wins": 0,
       "losses": 0,
-      "draws": 0
+      "draws": 1
     },
     "pve_medium": {
       "wins": 0,
@@ -25,12 +25,12 @@
     "player1": {
       "wins": 0,
       "losses": 0,
-      "draws": 0
+      "draws": 1
     },
     "player2": {
       "wins": 0,
       "losses": 0,
-      "draws": 0
+      "draws": 1
     }
   }
 }

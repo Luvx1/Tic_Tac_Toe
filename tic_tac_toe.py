@@ -406,15 +406,29 @@ class TicTacToe:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Display statistics for each mode
+        # Display statistics for each mode in a 2x2 grid
         modes = [
-            ('👥 Người vs Người', 'pvp', self.colors['primary']),
-            ('🤖 Người vs Máy (Dễ)', 'pve_easy', self.colors['success']),
-            ('🤖 Người vs Máy (Trung bình)', 'pve_medium', self.colors['warning']),
-            ('🤖 Người vs Máy (Khó)', 'pve_hard', self.colors['danger'])
+            ('Người vs Người', 'pvp', self.colors['primary']),
+            ('Máy (Dễ)', 'pve_easy', self.colors['success']),
+            ('Máy (Trung bình)', 'pve_medium', self.colors['warning']),
+            ('Máy (Khó)', 'pve_hard', self.colors['danger'])
         ]
         
-        for mode_name, mode_key, color in modes:
+        # Create a container frame to center the grid
+        container_frame = tk.Frame(scrollable_frame, bg=self.colors['light'])
+        container_frame.pack(expand=True, fill='both')
+        
+        # Create a frame for the grid layout
+        grid_frame = tk.Frame(container_frame, bg=self.colors['light'])
+        grid_frame.pack(expand=True, padx=10, pady=10)
+        
+        # Configure grid weights for equal spacing
+        grid_frame.grid_columnconfigure(0, weight=1)
+        grid_frame.grid_columnconfigure(1, weight=1)
+        grid_frame.grid_rowconfigure(0, weight=1)
+        grid_frame.grid_rowconfigure(1, weight=1)
+        
+        for i, (mode_name, mode_key, color) in enumerate(modes):
             stats = self.scores[mode_key]
             total_games = stats['wins'] + stats['losses'] + stats['draws']
             
@@ -429,12 +443,12 @@ class TicTacToe:
             
             # Mode card frame
             card_frame = tk.Frame(
-                scrollable_frame, 
+                grid_frame, 
                 bg=self.colors['white'], 
                 relief='raised', 
                 borderwidth=2
             )
-            card_frame.pack(fill='x', padx=10, pady=10)
+            card_frame.grid(row=i//2, column=i%2, padx=10, pady=10, sticky='nsew')
             
             # Mode header
             header_frame = tk.Frame(card_frame, bg=color, height=50)
@@ -504,7 +518,7 @@ class TicTacToe:
         self.clear_window()
         
         # Create title
-        self.create_title_frame("🤖 Chọn Độ AI")
+        self.create_title_frame("🤖 Chọn Mức Độ AI")
         
         # Main content frame
         content_frame = tk.Frame(self.root, bg=self.colors['light'])
@@ -590,7 +604,7 @@ class TicTacToe:
         self.clear_window()
         
         # Create title
-        title_text = "🎮 Tic-Tac-Toe"
+        title_text = "🎮 Người chơi"
         if mode == 'pve':
             difficulty_map = {'easy': 'Dễ', 'medium': 'Trung bình', 'hard': 'Khó'}
             title_text += f" vs AI ({difficulty_map[self.ai_difficulty]})"
@@ -688,7 +702,7 @@ class TicTacToe:
             bg=self.colors['dark'],
             activebackground='#424242',
             width=20,
-            command=self.create_mode_selection
+            command=(self.create_ai_difficulty_selection if self.mode == 'pve' else self.create_mode_selection)
         )
         self.back_btn.pack(pady=5)
         
