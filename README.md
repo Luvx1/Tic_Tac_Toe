@@ -125,7 +125,9 @@ The AI uses the Minimax algorithm with Alpha-Beta pruning:
 - **Intuitive Navigation**: Easy-to-use menus and controls
 - **Visual Feedback**: Hover effects and color coding
 - **Responsive Layout**: Adapts to different screen sizes
+  
 ##📝 Game Interface
+
 ###👉 Main Interface
 <img width="1916" height="895" alt="image" src="https://github.com/user-attachments/assets/3130afb8-b92b-4d60-8b65-20d2b92bd0fe" />
 ###👉 PvE Interface
