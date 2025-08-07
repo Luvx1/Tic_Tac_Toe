@@ -504,7 +504,7 @@ class TicTacToe:
         self.clear_window()
         
         # Create title
-        self.create_title_frame("🤖 Chọn Độ Khó AI")
+        self.create_title_frame("🤖 Chọn Độ AI")
         
         # Main content frame
         content_frame = tk.Frame(self.root, bg=self.colors['light'])
@@ -513,7 +513,7 @@ class TicTacToe:
         # Difficulty buttons
         btn_easy = ModernButton(
             content_frame, 
-            text="😊 Dễ (Đánh ngẫu nhiên)", 
+            text="Dễ ", 
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['success'],
             activebackground='#388E3C',
@@ -525,7 +525,7 @@ class TicTacToe:
         
         btn_medium = ModernButton(
             content_frame, 
-            text="😐 Trung bình (Đôi khi thông minh)", 
+            text="Trung bình ", 
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['warning'],
             activebackground='#F57C00',
@@ -537,7 +537,7 @@ class TicTacToe:
         
         btn_hard = ModernButton(
             content_frame, 
-            text="😈 Khó (Luôn thông minh)", 
+            text="Khó ", 
             font=('Segoe UI', 14, 'bold'),
             bg=self.colors['danger'],
             activebackground='#D32F2F',
@@ -1212,6 +1212,7 @@ class TicTacToe:
                 for j in range(3):
                     if board[i][j] is None:
                         board[i][j] = 'O'
+                       
                         eval_score = self.minimax(board, depth + 1, False, alpha, beta)
                         board[i][j] = None
                         max_eval = max(max_eval, eval_score)
